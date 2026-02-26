@@ -49,7 +49,7 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact_name: libllamenoscorecore-linux-x64
+            artifact_name: libllamenoscore-linux-x64
             lib_ext: so
           - os: macos-latest
             target: x86_64-apple-darwin
