@@ -252,6 +252,45 @@ pub fn decrypt_call_record(
     String::from_utf8(plaintext).map_err(|_| CryptoError::DecryptionFailed)
 }
 
+// --- Legacy V1 Note Decryption ---
+// V1 notes used HKDF-derived key from the secret key (no forward secrecy).
+// Kept for backward compatibility with pre-V2 notes.
+
+/// Decrypt a V1 legacy note (HKDF-derived key, not per-note forward secrecy).
+///
+/// packed_hex = hex(nonce(24) + ciphertext)
+pub fn decrypt_legacy_note(
+    packed_hex: &str,
+    secret_key_hex: &str,
+) -> Result<String, CryptoError> {
+    let sk_bytes = hex::decode(secret_key_hex).map_err(CryptoError::HexError)?;
+    if sk_bytes.len() != 32 {
+        return Err(CryptoError::InvalidSecretKey);
+    }
+    let mut sk = [0u8; 32];
+    sk.copy_from_slice(&sk_bytes);
+
+    let mut key = derive_encryption_key(&sk, HKDF_CONTEXT_NOTES);
+
+    let data = hex::decode(packed_hex).map_err(CryptoError::HexError)?;
+    if data.len() < 24 {
+        return Err(CryptoError::InvalidCiphertext);
+    }
+    let nonce = XNonce::from_slice(&data[..24]);
+    let ciphertext = &data[24..];
+
+    let cipher = XChaCha20Poly1305::new_from_slice(&key)
+        .map_err(|e| CryptoError::EncryptionFailed(e.to_string()))?;
+    let plaintext = cipher
+        .decrypt(nonce, ciphertext)
+        .map_err(|_| CryptoError::DecryptionFailed)?;
+
+    key.zeroize();
+    sk.zeroize();
+
+    String::from_utf8(plaintext).map_err(|_| CryptoError::DecryptionFailed)
+}
+
 // --- HKDF-based Symmetric Encryption (legacy + drafts/export) ---
 
 /// Derive a symmetric encryption key from a secret key and label using HKDF.
@@ -327,6 +366,47 @@ pub fn decrypt_draft(packed_hex: &str, secret_key_hex: &str) -> Result<String, C
     sk.zeroize();
 
     String::from_utf8(plaintext).map_err(|_| CryptoError::DecryptionFailed)
+}
+
+// --- Export Encryption ---
+
+/// Encrypt a JSON export blob. Returns base64-encoded ciphertext.
+///
+/// Uses HKDF-derived key with HKDF_CONTEXT_EXPORT.
+/// Returns base64(nonce(24) + ciphertext) — avoids JSON-serializing large byte
+/// arrays as number arrays over IPC.
+pub fn encrypt_export(json_string: &str, secret_key_hex: &str) -> Result<String, CryptoError> {
+    let sk_bytes = hex::decode(secret_key_hex).map_err(CryptoError::HexError)?;
+    if sk_bytes.len() != 32 {
+        return Err(CryptoError::InvalidSecretKey);
+    }
+    let mut sk = [0u8; 32];
+    sk.copy_from_slice(&sk_bytes);
+
+    let mut key = derive_encryption_key(&sk, HKDF_CONTEXT_EXPORT);
+    let nonce_bytes = {
+        let mut n = [0u8; 24];
+        getrandom::getrandom(&mut n).expect("getrandom failed");
+        n
+    };
+
+    let nonce = XNonce::from_slice(&nonce_bytes);
+    let cipher = XChaCha20Poly1305::new_from_slice(&key)
+        .map_err(|e| CryptoError::EncryptionFailed(e.to_string()))?;
+    let ciphertext = cipher
+        .encrypt(nonce, json_string.as_bytes())
+        .map_err(|e| CryptoError::EncryptionFailed(e.to_string()))?;
+
+    key.zeroize();
+    sk.zeroize();
+
+    // Pack: nonce(24) + ciphertext, then base64 encode
+    let mut packed = Vec::with_capacity(24 + ciphertext.len());
+    packed.extend_from_slice(&nonce_bytes);
+    packed.extend_from_slice(&ciphertext);
+
+    use base64::{Engine, engine::general_purpose::STANDARD};
+    Ok(STANDARD.encode(&packed))
 }
 
 // --- PIN-encrypted Key Storage ---
@@ -528,5 +608,57 @@ mod tests {
         assert!(!is_valid_pin("abcd"));    // not digits
         assert!(is_valid_pin("1234"));     // valid
         assert!(is_valid_pin("123456"));   // valid
+    }
+
+    #[test]
+    fn roundtrip_legacy_note() {
+        let kp = generate_keypair();
+        let payload = r#"{"text":"Legacy note content","customFields":{}}"#;
+
+        // Encrypt with HKDF_CONTEXT_NOTES directly (simulating V1 encrypt)
+        let sk_bytes = hex::decode(&kp.secret_key_hex).unwrap();
+        let mut sk = [0u8; 32];
+        sk.copy_from_slice(&sk_bytes);
+        let key = derive_encryption_key(&sk, HKDF_CONTEXT_NOTES);
+        let nonce_bytes = {
+            let mut n = [0u8; 24];
+            getrandom::getrandom(&mut n).expect("getrandom failed");
+            n
+        };
+        let nonce = XNonce::from_slice(&nonce_bytes);
+        let cipher = XChaCha20Poly1305::new_from_slice(&key).unwrap();
+        let ciphertext = cipher.encrypt(nonce, payload.as_bytes()).unwrap();
+        let mut packed = Vec::with_capacity(24 + ciphertext.len());
+        packed.extend_from_slice(&nonce_bytes);
+        packed.extend_from_slice(&ciphertext);
+        let packed_hex = hex::encode(&packed);
+
+        // Decrypt with the new function
+        let decrypted = decrypt_legacy_note(&packed_hex, &kp.secret_key_hex).unwrap();
+        assert_eq!(decrypted, payload);
+    }
+
+    #[test]
+    fn roundtrip_export_encryption() {
+        let kp = generate_keypair();
+        let json = r#"{"notes":[{"id":"1","text":"test"}],"exportedAt":"2024-01-01"}"#;
+
+        let encrypted = encrypt_export(json, &kp.secret_key_hex).unwrap();
+
+        // Verify it's valid base64
+        use base64::{Engine, engine::general_purpose::STANDARD};
+        let decoded = STANDARD.decode(&encrypted).unwrap();
+        assert!(decoded.len() > 24); // nonce + ciphertext
+
+        // Decrypt manually to verify correctness
+        let sk_bytes = hex::decode(&kp.secret_key_hex).unwrap();
+        let mut sk = [0u8; 32];
+        sk.copy_from_slice(&sk_bytes);
+        let key = derive_encryption_key(&sk, HKDF_CONTEXT_EXPORT);
+        let nonce = XNonce::from_slice(&decoded[..24]);
+        let ciphertext = &decoded[24..];
+        let cipher = XChaCha20Poly1305::new_from_slice(&key).unwrap();
+        let plaintext = cipher.decrypt(nonce, ciphertext).unwrap();
+        assert_eq!(String::from_utf8(plaintext).unwrap(), json);
     }
 }

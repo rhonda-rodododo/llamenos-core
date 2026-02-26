@@ -23,6 +23,7 @@ pub mod encryption;
 pub mod auth;
 pub mod keys;
 pub mod errors;
+pub mod nostr;
 
 #[cfg(feature = "uniffi-bindgen")]
 mod ffi;
@@ -34,3 +35,4 @@ pub use encryption::{EncryptedNote, EncryptedMessage, EncryptedKeyData};
 pub use auth::AuthToken;
 pub use keys::KeyPair;
 pub use errors::CryptoError;
+pub use nostr::SignedNostrEvent;

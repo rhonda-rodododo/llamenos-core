@@ -217,6 +217,64 @@ pub fn ecies_unwrap_key(
     Ok(key)
 }
 
+/// Decrypt arbitrary-length ECIES-encrypted content.
+///
+/// Same ECDH + SHA-256(label || sharedX) key derivation as `ecies_unwrap_key`,
+/// but decrypts data of any length (not just 32-byte keys). Used for file
+/// metadata, transcriptions, and other ECIES-encrypted content.
+///
+/// - `packed_hex`: hex(nonce_24 + ciphertext)
+/// - `ephemeral_pubkey_hex`: compressed SEC1 (33 bytes / 66 hex chars)
+/// - `secret_key_hex`: recipient's secret key
+/// - `label`: domain separation label
+pub fn ecies_decrypt_content(
+    packed_hex: &str,
+    ephemeral_pubkey_hex: &str,
+    secret_key_hex: &str,
+    label: &str,
+) -> Result<String, CryptoError> {
+    // Parse secret key
+    let sk_bytes = hex::decode(secret_key_hex).map_err(CryptoError::HexError)?;
+    if sk_bytes.len() != 32 {
+        return Err(CryptoError::InvalidSecretKey);
+    }
+    let secret_key = SecretKey::from_slice(&sk_bytes)
+        .map_err(|_| CryptoError::InvalidSecretKey)?;
+
+    // Parse ephemeral public key (compressed SEC1, 33 bytes)
+    let ephemeral_bytes = hex::decode(ephemeral_pubkey_hex)
+        .map_err(CryptoError::HexError)?;
+    let ephemeral_pubkey = PublicKey::from_sec1_bytes(&ephemeral_bytes)
+        .map_err(|_| CryptoError::InvalidEphemeralKey)?;
+
+    // ECDH: compute shared x-coordinate
+    let mut shared_x = ecdh_shared_x(&secret_key, &ephemeral_pubkey)?;
+
+    // Derive symmetric key: SHA-256(label || sharedX)
+    let mut symmetric_key = derive_ecies_symmetric_key(label, &shared_x);
+
+    // Unpack: nonce(24) + ciphertext
+    let data = hex::decode(packed_hex).map_err(CryptoError::HexError)?;
+    if data.len() < 24 {
+        return Err(CryptoError::InvalidCiphertext);
+    }
+    let nonce = XNonce::from_slice(&data[..24]);
+    let ciphertext = &data[24..];
+
+    // Decrypt
+    let cipher = XChaCha20Poly1305::new_from_slice(&symmetric_key)
+        .map_err(|e| CryptoError::EncryptionFailed(e.to_string()))?;
+    let plaintext = cipher
+        .decrypt(nonce, ciphertext)
+        .map_err(|_| CryptoError::DecryptionFailed)?;
+
+    // Zero out sensitive material
+    symmetric_key.zeroize();
+    shared_x.zeroize();
+
+    String::from_utf8(plaintext).map_err(|_| CryptoError::DecryptionFailed)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -282,5 +340,63 @@ mod tests {
 
         let result = ecies_unwrap_key(&envelope, &wrong_sk_hex, LABEL_NOTE_KEY);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn roundtrip_ecies_content_encrypt_decrypt() {
+        use k256::ecdh::EphemeralSecret;
+
+        // Recipient keypair
+        let recipient_sk = SecretKey::random(&mut OsRng);
+        let recipient_pk = recipient_sk.public_key();
+        let recipient_pk_encoded = recipient_pk.to_encoded_point(true);
+        let recipient_xonly_hex = hex::encode(&recipient_pk_encoded.as_bytes()[1..]);
+        let recipient_sk_hex = hex::encode(recipient_sk.to_bytes());
+
+        // Simulate server-side ECIES encryption of arbitrary content
+        let content = "This is a transcription of the call";
+        let label = "llamenos:transcription";
+
+        // Generate ephemeral keypair (server side)
+        let ephemeral_secret = EphemeralSecret::random(&mut OsRng);
+        let ephemeral_public = ephemeral_secret.public_key();
+
+        // Parse recipient's x-only pubkey → compressed
+        let recipient_compressed = xonly_to_compressed(&recipient_xonly_hex).unwrap();
+        let recipient_pubkey = k256::PublicKey::from_sec1_bytes(&recipient_compressed).unwrap();
+
+        // ECDH
+        let shared_point = ephemeral_secret.diffie_hellman(&recipient_pubkey);
+        let shared_bytes = shared_point.raw_secret_bytes();
+        let mut shared_x = [0u8; 32];
+        shared_x.copy_from_slice(shared_bytes);
+
+        // Derive symmetric key
+        let symmetric_key = derive_ecies_symmetric_key(label, &shared_x);
+
+        // Encrypt content
+        let nonce_bytes = random_nonce();
+        let nonce = XNonce::from_slice(&nonce_bytes);
+        let cipher = XChaCha20Poly1305::new_from_slice(&symmetric_key).unwrap();
+        let ciphertext = cipher.encrypt(nonce, content.as_bytes()).unwrap();
+
+        // Pack: nonce(24) + ciphertext
+        let mut packed = Vec::with_capacity(24 + ciphertext.len());
+        packed.extend_from_slice(&nonce_bytes);
+        packed.extend_from_slice(&ciphertext);
+        let packed_hex = hex::encode(&packed);
+
+        // Ephemeral pubkey as compressed SEC1
+        let ephemeral_encoded = ephemeral_public.to_encoded_point(true);
+        let ephemeral_hex = hex::encode(ephemeral_encoded.as_bytes());
+
+        // Decrypt with the new function
+        let decrypted = ecies_decrypt_content(
+            &packed_hex,
+            &ephemeral_hex,
+            &recipient_sk_hex,
+            label,
+        ).unwrap();
+        assert_eq!(decrypted, content);
     }
 }

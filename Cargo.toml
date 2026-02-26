@@ -30,6 +30,7 @@ zeroize = { version = "1", features = ["derive"] }
 
 # Encoding
 hex = "0.4"
+base64 = "0.22"
 
 # Randomness
 rand = "0.8"
