@@ -53,8 +53,12 @@ wasm-bindgen = { version = "0.2", optional = true }
 
 [features]
 default = []
-uniffi-bindgen = ["dep:uniffi"]
+uniffi-bindgen = ["dep:uniffi", "uniffi/cli"]
 wasm = ["dep:wasm-bindgen", "getrandom/js"]
+
+[[bin]]
+name = "uniffi-bindgen"
+required-features = ["uniffi-bindgen"]
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2", features = ["js"] }
@@ -66,3 +70,9 @@ serde_json = "1"
 lto = true
 codegen-units = 1
 strip = true
+
+# UniFFI bindgen needs unstripped binary to read metadata symbols.
+# Use this profile when generating bindings: cargo build --profile release-bindgen
+[profile.release-bindgen]
+inherits = "release"
+strip = false

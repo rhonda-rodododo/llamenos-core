@@ -30,6 +30,7 @@ use crate::errors::CryptoError;
 /// A symmetric key wrapped via ECIES for a single recipient.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "uniffi-bindgen", derive(uniffi::Record))]
 pub struct KeyEnvelope {
     /// hex: nonce(24) + ciphertext(48 = 32 key + 16 tag)
     pub wrapped_key: String,
@@ -40,6 +41,7 @@ pub struct KeyEnvelope {
 /// A KeyEnvelope tagged with the recipient's pubkey (for multi-recipient scenarios).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "uniffi-bindgen", derive(uniffi::Record))]
 pub struct RecipientKeyEnvelope {
     /// recipient's x-only pubkey (hex, 32 bytes / 64 hex chars)
     pub pubkey: String,

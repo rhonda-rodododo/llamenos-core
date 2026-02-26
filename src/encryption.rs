@@ -25,6 +25,7 @@ const PBKDF2_ITERATIONS: u32 = 600_000;
 /// Encrypted note with per-note key wrapped for author + each admin.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "uniffi-bindgen", derive(uniffi::Record))]
 pub struct EncryptedNote {
     /// hex: nonce(24) + ciphertext
     pub encrypted_content: String,
@@ -90,6 +91,7 @@ pub fn encrypt_note(
 }
 
 /// Decrypt a V2 note using the appropriate envelope for the current user.
+#[cfg_attr(feature = "uniffi-bindgen", uniffi::export)]
 pub fn decrypt_note(
     encrypted_content: &str,
     envelope: &KeyEnvelope,
@@ -122,6 +124,7 @@ pub fn decrypt_note(
 /// Encrypted message with per-message key wrapped for each reader.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "uniffi-bindgen", derive(uniffi::Record))]
 pub struct EncryptedMessage {
     /// hex: nonce(24) + ciphertext
     pub encrypted_content: String,
@@ -262,6 +265,7 @@ fn derive_encryption_key(secret_key: &[u8; 32], label: &str) -> [u8; 32] {
 }
 
 /// Encrypt a draft (local auto-save) with HKDF-derived key.
+#[cfg_attr(feature = "uniffi-bindgen", uniffi::export)]
 pub fn encrypt_draft(plaintext: &str, secret_key_hex: &str) -> Result<String, CryptoError> {
     let sk_bytes = hex::decode(secret_key_hex).map_err(CryptoError::HexError)?;
     if sk_bytes.len() != 32 {
@@ -295,6 +299,7 @@ pub fn encrypt_draft(plaintext: &str, secret_key_hex: &str) -> Result<String, Cr
 }
 
 /// Decrypt a draft.
+#[cfg_attr(feature = "uniffi-bindgen", uniffi::export)]
 pub fn decrypt_draft(packed_hex: &str, secret_key_hex: &str) -> Result<String, CryptoError> {
     let sk_bytes = hex::decode(secret_key_hex).map_err(CryptoError::HexError)?;
     if sk_bytes.len() != 32 {
@@ -329,6 +334,7 @@ pub fn decrypt_draft(packed_hex: &str, secret_key_hex: &str) -> Result<String, C
 /// Encrypted key data stored on disk (Stronghold on desktop, Keychain on mobile).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "uniffi-bindgen", derive(uniffi::Record))]
 pub struct EncryptedKeyData {
     /// hex, 16 bytes
     pub salt: String,
@@ -350,6 +356,7 @@ pub fn derive_kek_from_pin(pin: &str, salt: &[u8]) -> [u8; 32] {
 }
 
 /// Encrypt an nsec bech32 string with a PIN.
+#[cfg_attr(feature = "uniffi-bindgen", uniffi::export)]
 pub fn encrypt_with_pin(nsec: &str, pin: &str, pubkey_hex: &str) -> Result<EncryptedKeyData, CryptoError> {
     if !is_valid_pin(pin) {
         return Err(CryptoError::InvalidPin);
@@ -394,6 +401,7 @@ pub fn encrypt_with_pin(nsec: &str, pin: &str, pubkey_hex: &str) -> Result<Encry
 }
 
 /// Decrypt a stored nsec using a PIN. Returns the nsec bech32 string or error.
+#[cfg_attr(feature = "uniffi-bindgen", uniffi::export)]
 pub fn decrypt_with_pin(data: &EncryptedKeyData, pin: &str) -> Result<String, CryptoError> {
     let salt = hex::decode(&data.salt).map_err(CryptoError::HexError)?;
     let nonce_bytes = hex::decode(&data.nonce).map_err(CryptoError::HexError)?;
@@ -418,6 +426,7 @@ pub fn decrypt_with_pin(data: &EncryptedKeyData, pin: &str) -> Result<String, Cr
 }
 
 /// Validate PIN format: 4-6 digits.
+#[cfg_attr(feature = "uniffi-bindgen", uniffi::export)]
 pub fn is_valid_pin(pin: &str) -> bool {
     let len = pin.len();
     (4..=6).contains(&len) && pin.chars().all(|c| c.is_ascii_digit())

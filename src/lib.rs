@@ -14,12 +14,18 @@
 //! - ECIES with per-operation ephemeral keys provides forward secrecy
 //! - PBKDF2 with 600K iterations for PIN-based key derivation
 
+#[cfg(feature = "uniffi-bindgen")]
+uniffi::setup_scaffolding!();
+
 pub mod labels;
 pub mod ecies;
 pub mod encryption;
 pub mod auth;
 pub mod keys;
 pub mod errors;
+
+#[cfg(feature = "uniffi-bindgen")]
+mod ffi;
 
 // Re-export core types
 pub use labels::*;
