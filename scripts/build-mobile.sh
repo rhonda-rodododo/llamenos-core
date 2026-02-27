@@ -185,7 +185,6 @@ build_ios() {
   cargo run --features uniffi-bindgen --bin uniffi-bindgen -- \
     generate --library "$bindgen_lib" --language swift --out-dir "$ios_dist"
 
-  # Create a module.modulemap for the XCFramework headers
   local header_file="$ios_dist/LlamenosCoreFFI.h"
   local modulemap_file="$ios_dist/LlamenosCoreFFI.modulemap"
 
@@ -194,25 +193,46 @@ build_ios() {
     exit 1
   fi
 
-  # Create headers directory for XCFramework
-  local headers_dir="$ios_dist/headers"
-  mkdir -p "$headers_dir"
-  cp "$header_file" "$headers_dir/"
-  cp "$modulemap_file" "$headers_dir/module.modulemap"
+  # Wrap static libraries in .framework bundles before creating XCFramework.
+  # CocoaPods has a known bug (issues #9528, #11372) where vendored_frameworks
+  # with XCFrameworks containing raw .a files doesn't correctly extract them
+  # for linking. Using .framework bundles avoids this issue.
+  echo ""
+  echo "Wrapping static libraries in .framework bundles..."
+  local fw_name="LlamenosCoreFFI"
+  local device_fw_dir
+  local sim_fw_dir
+  device_fw_dir="$(mktemp -d)"
+  sim_fw_dir="$(mktemp -d)"
 
-  # Create XCFramework
+  for pair in "$device_lib:$device_fw_dir" "$sim_lib:$sim_fw_dir"; do
+    local lib="${pair%%:*}"
+    local out="${pair##*:}"
+    local fw_path="$out/${fw_name}.framework"
+    mkdir -p "$fw_path/Headers" "$fw_path/Modules"
+    cp "$lib" "$fw_path/$fw_name"
+    cp "$header_file" "$fw_path/Headers/"
+    cat > "$fw_path/Modules/module.modulemap" <<MODULEMAP
+framework module $fw_name {
+  header "LlamenosCoreFFI.h"
+  export *
+}
+MODULEMAP
+  done
+
+  # Create XCFramework from .framework bundles
   echo ""
   echo "Creating XCFramework..."
   local xcframework="$ios_dist/LlamenosCore.xcframework"
   rm -rf "$xcframework"
 
   xcodebuild -create-xcframework \
-    -library "$device_lib" -headers "$headers_dir" \
-    -library "$sim_lib" -headers "$headers_dir" \
+    -framework "$device_fw_dir/${fw_name}.framework" \
+    -framework "$sim_fw_dir/${fw_name}.framework" \
     -output "$xcframework"
 
-  # Clean up temporary headers directory
-  rm -rf "$headers_dir"
+  # Clean up temporary directories
+  rm -rf "$device_fw_dir" "$sim_fw_dir"
 
   echo ""
   echo "iOS artifacts:"

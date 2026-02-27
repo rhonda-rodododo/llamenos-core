@@ -242,21 +242,34 @@ jobs:
 
       - name: Create XCFramework
         run: |
-          # Prepare headers for XCFramework
-          mkdir -p dist/ios/headers
-          cp dist/ios/LlamenosCoreFFI.h dist/ios/headers/
-          cp dist/ios/LlamenosCoreFFI.modulemap dist/ios/headers/module.modulemap
+          # Wrap static libraries in .framework bundles before creating XCFramework.
+          # CocoaPods has a known bug (issues #9528, #11372) where vendored_frameworks
+          # with XCFrameworks containing raw .a files doesn't correctly extract them
+          # for linking. Using .framework bundles avoids this issue.
+          FW_NAME="LlamenosCoreFFI"
 
-          # Create XCFramework from device + simulator static libraries
+          for PAIR in \
+            "target/aarch64-apple-ios/release/libllamenos_core.a:/tmp/device" \
+            "target/aarch64-apple-ios-sim/release/libllamenos_core.a:/tmp/simulator"; do
+            LIB="${PAIR%%:*}"
+            OUT="${PAIR##*:}"
+            FW_PATH="$OUT/${FW_NAME}.framework"
+            mkdir -p "$FW_PATH/Headers" "$FW_PATH/Modules"
+            cp "$LIB" "$FW_PATH/$FW_NAME"
+            cp dist/ios/LlamenosCoreFFI.h "$FW_PATH/Headers/"
+            cat > "$FW_PATH/Modules/module.modulemap" <<MODULEMAP
+          framework module $FW_NAME {
+            header "LlamenosCoreFFI.h"
+            export *
+          }
+          MODULEMAP
+          done
+
+          # Create XCFramework from .framework bundles
           xcodebuild -create-xcframework \
-            -library target/aarch64-apple-ios/release/libllamenos_core.a \
-            -headers dist/ios/headers \
-            -library target/aarch64-apple-ios-sim/release/libllamenos_core.a \
-            -headers dist/ios/headers \
+            -framework "/tmp/device/${FW_NAME}.framework" \
+            -framework "/tmp/simulator/${FW_NAME}.framework" \
             -output dist/ios/LlamenosCore.xcframework
-
-          # Clean up temporary headers directory
-          rm -rf dist/ios/headers
 
       - name: Upload iOS libraries
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
