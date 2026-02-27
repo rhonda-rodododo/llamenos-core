@@ -84,7 +84,7 @@ jobs:
         run: cargo build --release --target ${{ matrix.target }}
 
       - name: Upload native library
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: ${{ matrix.artifact_name }}
           path: |
@@ -121,7 +121,7 @@ jobs:
         run: wasm-pack build --target web --features wasm --no-default-features --out-dir pkg
 
       - name: Upload WASM package
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: wasm-package
           path: pkg/
@@ -147,14 +147,14 @@ jobs:
         run: ./scripts/generate-bindings.sh
 
       - name: Upload Swift bindings
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: bindings-swift
           path: bindings/swift/
           retention-days: 5
 
       - name: Upload Kotlin bindings
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: bindings-kotlin
           path: bindings/kotlin/
@@ -202,7 +202,7 @@ jobs:
             --language kotlin --out-dir dist/android/kotlin
 
       - name: Upload Android libraries
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: android-libs
           path: dist/android/
@@ -272,7 +272,7 @@ jobs:
             -output dist/ios/LlamenosCoreFFI.xcframework
 
       - name: Upload iOS libraries
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: ios-libs
           path: dist/ios/
