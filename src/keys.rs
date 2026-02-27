@@ -39,7 +39,7 @@ pub fn generate_keypair() -> KeyPair {
     // x-only = skip the 0x02/0x03 prefix
     let pk_xonly = &pk_compressed[1..];
 
-    let secret_key_hex = hex::encode(&sk_bytes);
+    let secret_key_hex = hex::encode(sk_bytes);
     let public_key = hex::encode(pk_xonly);
 
     let nsec = bech32::encode::<Bech32>(Hrp::parse("nsec").unwrap(), &sk_bytes)

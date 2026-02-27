@@ -38,7 +38,7 @@ pub fn create_auth_token(
         return Err(CryptoError::InvalidSecretKey);
     }
 
-    let signing_key = SigningKey::from_bytes(sk_bytes.as_slice().try_into().unwrap())
+    let signing_key = SigningKey::from_bytes(sk_bytes.as_slice())
         .map_err(|_| CryptoError::InvalidSecretKey)?;
     let verifying_key = signing_key.verifying_key();
     let pubkey_hex = hex::encode(verifying_key.to_bytes());
@@ -83,7 +83,7 @@ pub fn verify_auth_token(
         return Err(CryptoError::InvalidPublicKey);
     }
 
-    let verifying_key = VerifyingKey::from_bytes(pubkey_bytes.as_slice().try_into().unwrap())
+    let verifying_key = VerifyingKey::from_bytes(pubkey_bytes.as_slice())
         .map_err(|_| CryptoError::InvalidPublicKey)?;
 
     let message = format!("{AUTH_PREFIX}{}:{}:{}:{}", token.pubkey, token.timestamp, method, path);
@@ -121,7 +121,7 @@ pub fn verify_schnorr(
         return Err(CryptoError::InvalidPublicKey);
     }
 
-    let verifying_key = VerifyingKey::from_bytes(pubkey_bytes.as_slice().try_into().unwrap())
+    let verifying_key = VerifyingKey::from_bytes(pubkey_bytes.as_slice())
         .map_err(|_| CryptoError::InvalidPublicKey)?;
 
     let message = hex::decode(message_hex).map_err(CryptoError::HexError)?;

@@ -47,7 +47,7 @@ pub fn finalize_nostr_event(
         return Err(CryptoError::InvalidSecretKey);
     }
 
-    let signing_key = SigningKey::from_bytes(sk_bytes.as_slice().try_into().unwrap())
+    let signing_key = SigningKey::from_bytes(sk_bytes.as_slice())
         .map_err(|_| CryptoError::InvalidSecretKey)?;
     let pubkey = hex::encode(signing_key.verifying_key().to_bytes());
 
