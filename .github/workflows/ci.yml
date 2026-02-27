@@ -49,3 +49,29 @@ jobs:
 
       - name: Build UniFFI target
         run: cargo build --profile release-bindgen --features uniffi-bindgen
+
+  # ─── Notify Downstream Repos ──────────────────────────────
+  # When tests pass on main, trigger CI in llamenos and llamenos-mobile
+  # so they test against the latest crypto crate changes.
+  notify-downstream:
+    name: Notify downstream repos
+    needs: [test]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger llamenos CI
+        uses: peter-evans/repository-dispatch@ff45666b9427631e3450c54a1bcbee4d9ff4d7c0 # v3.0.0
+        with:
+          token: ${{ secrets.CROSS_REPO_TOKEN }}
+          repository: rhonda-rodododo/llamenos
+          event-type: core-updated
+          client-payload: '{"sha": "${{ github.sha }}"}'
+
+      - name: Trigger llamenos-mobile CI
+        uses: peter-evans/repository-dispatch@ff45666b9427631e3450c54a1bcbee4d9ff4d7c0 # v3.0.0
+        with:
+          token: ${{ secrets.CROSS_REPO_TOKEN }}
+          repository: rhonda-rodododo/llamenos-mobile
+          event-type: core-updated
+          client-payload: '{"sha": "${{ github.sha }}"}'
