@@ -173,4 +173,34 @@ mod tests {
         let valid = verify_auth_token(&token, "GET", "/api/auth/login").unwrap();
         assert!(!valid);
     }
+
+    #[test]
+    fn malformed_token_rejected() {
+        // Too-short signature
+        let short_token = AuthToken {
+            pubkey: "a".repeat(64),
+            timestamp: 1708900000000,
+            token: "abcd".to_string(), // way too short
+        };
+        let result = verify_auth_token(&short_token, "GET", "/api/notes");
+        assert!(result.is_err() || matches!(result, Ok(false)));
+
+        // Non-hex characters
+        let nonhex_token = AuthToken {
+            pubkey: "a".repeat(64),
+            timestamp: 1708900000000,
+            token: "zzzz".repeat(32), // not valid hex
+        };
+        let result = verify_auth_token(&nonhex_token, "GET", "/api/notes");
+        assert!(result.is_err());
+
+        // Random 64 bytes (valid format but random signature)
+        let random_token = AuthToken {
+            pubkey: "a".repeat(64),
+            timestamp: 1708900000000,
+            token: "ff".repeat(64),
+        };
+        let result = verify_auth_token(&random_token, "GET", "/api/notes");
+        assert!(result.is_err() || matches!(result, Ok(false)));
+    }
 }

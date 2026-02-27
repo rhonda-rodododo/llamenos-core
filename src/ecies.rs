@@ -343,6 +343,64 @@ mod tests {
     }
 
     #[test]
+    fn truncated_wrapped_key_fails() {
+        let sk = SecretKey::random(&mut OsRng);
+        let pk = sk.public_key();
+        let pk_encoded = pk.to_encoded_point(true);
+        let xonly_hex = hex::encode(&pk_encoded.as_bytes()[1..]);
+        let sk_hex = hex::encode(sk.to_bytes());
+
+        let original_key = random_bytes_32();
+        let envelope =
+            ecies_wrap_key(&original_key, &xonly_hex, LABEL_NOTE_KEY).unwrap();
+
+        // Truncate the wrapped key by removing the last 2 hex chars (1 byte)
+        let truncated = &envelope.wrapped_key[..envelope.wrapped_key.len() - 2];
+        let bad_envelope = KeyEnvelope {
+            ephemeral_pubkey: envelope.ephemeral_pubkey.clone(),
+            wrapped_key: truncated.to_string(),
+        };
+        assert!(ecies_unwrap_key(&bad_envelope, &sk_hex, LABEL_NOTE_KEY).is_err());
+    }
+
+    #[test]
+    fn tampered_ciphertext_fails() {
+        let sk = SecretKey::random(&mut OsRng);
+        let pk = sk.public_key();
+        let pk_encoded = pk.to_encoded_point(true);
+        let xonly_hex = hex::encode(&pk_encoded.as_bytes()[1..]);
+        let sk_hex = hex::encode(sk.to_bytes());
+
+        let original_key = random_bytes_32();
+        let envelope =
+            ecies_wrap_key(&original_key, &xonly_hex, LABEL_NOTE_KEY).unwrap();
+
+        // Flip a bit in the ciphertext portion (after the 24-byte nonce = 48 hex chars)
+        let mut wrapped_bytes = hex::decode(&envelope.wrapped_key).unwrap();
+        if wrapped_bytes.len() > 24 {
+            wrapped_bytes[25] ^= 0x01; // flip 1 bit in ciphertext
+        }
+        let bad_envelope = KeyEnvelope {
+            ephemeral_pubkey: envelope.ephemeral_pubkey.clone(),
+            wrapped_key: hex::encode(&wrapped_bytes),
+        };
+        assert!(ecies_unwrap_key(&bad_envelope, &sk_hex, LABEL_NOTE_KEY).is_err());
+    }
+
+    #[test]
+    fn invalid_pubkey_format_fails() {
+        let original_key = random_bytes_32();
+
+        // 31-byte pubkey (too short)
+        let short_pubkey = hex::encode(&[0x02u8; 31]);
+        assert!(ecies_wrap_key(&original_key, &short_pubkey, LABEL_NOTE_KEY).is_err());
+
+        // All-zeros pubkey (not on curve)
+        let zero_pubkey = hex::encode(&[0u8; 32]);
+        assert!(ecies_wrap_key(&original_key, &zero_pubkey, LABEL_NOTE_KEY).is_err());
+    }
+
+    #[test]
     fn roundtrip_ecies_content_encrypt_decrypt() {
         use k256::ecdh::EphemeralSecret;
 

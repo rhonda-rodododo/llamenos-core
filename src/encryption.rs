@@ -611,6 +611,82 @@ mod tests {
     }
 
     #[test]
+    fn note_wrong_admin_key_fails() {
+        let author = generate_keypair();
+        let admin = generate_keypair();
+        let wrong_admin = generate_keypair();
+
+        let payload = r#"{"text":"Secret note"}"#;
+        let encrypted = encrypt_note(payload, &author.public_key, &[admin.public_key.clone()]).unwrap();
+
+        // Use admin's envelope but wrong admin's secret key
+        let admin_envelope = KeyEnvelope {
+            wrapped_key: encrypted.admin_envelopes[0].wrapped_key.clone(),
+            ephemeral_pubkey: encrypted.admin_envelopes[0].ephemeral_pubkey.clone(),
+        };
+        let result = decrypt_note(
+            &encrypted.encrypted_content,
+            &admin_envelope,
+            &wrong_admin.secret_key_hex,
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn note_tampered_content_fails() {
+        let author = generate_keypair();
+        let admin = generate_keypair();
+
+        let payload = r#"{"text":"Tamper test"}"#;
+        let encrypted = encrypt_note(payload, &author.public_key, &[admin.public_key.clone()]).unwrap();
+
+        // Flip a bit in the encrypted content (after nonce)
+        let mut content_bytes = hex::decode(&encrypted.encrypted_content).unwrap();
+        if content_bytes.len() > 25 {
+            content_bytes[25] ^= 0x01;
+        }
+        let tampered = hex::encode(&content_bytes);
+
+        let result = decrypt_note(
+            &tampered,
+            &encrypted.author_envelope,
+            &author.secret_key_hex,
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn message_wrong_reader_fails() {
+        let reader1 = generate_keypair();
+        let reader2 = generate_keypair();
+        let wrong_reader = generate_keypair();
+
+        let encrypted = encrypt_message(
+            "Secret message",
+            &[reader1.public_key.clone(), reader2.public_key.clone()],
+        ).unwrap();
+
+        // Wrong reader's key won't match any envelope
+        let result = decrypt_message(
+            &encrypted.encrypted_content,
+            &encrypted.reader_envelopes,
+            &wrong_reader.secret_key_hex,
+            &wrong_reader.public_key,
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn draft_wrong_key_fails() {
+        let author = generate_keypair();
+        let wrong_key = generate_keypair();
+
+        let encrypted = encrypt_draft("Draft content", &author.secret_key_hex).unwrap();
+        let result = decrypt_draft(&encrypted, &wrong_key.secret_key_hex);
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn roundtrip_legacy_note() {
         let kp = generate_keypair();
         let payload = r#"{"text":"Legacy note content","customFields":{}}"#;

@@ -174,4 +174,48 @@ mod tests {
         let event2 = finalize_nostr_event(1, 1000, vec![], "test2", sk).unwrap();
         assert_ne!(event1.id, event2.id);
     }
+
+    #[test]
+    fn tampered_content_invalidates_id() {
+        let sk = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        let event = finalize_nostr_event(20001, 1700000000, vec![], "original content", sk).unwrap();
+
+        // Tamper the content and recompute canonical JSON
+        let tampered_canonical = serde_json::to_string(&serde_json::json!([
+            0,
+            &event.pubkey,
+            event.created_at,
+            event.kind,
+            &event.tags,
+            "tampered content",
+        ])).unwrap();
+        let tampered_id = hex::encode(Sha256::digest(tampered_canonical.as_bytes()));
+
+        // Tampered ID must differ from original
+        assert_ne!(tampered_id, event.id);
+    }
+
+    #[test]
+    fn wrong_key_signature_fails() {
+        let sk_a = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        let sk_b = "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210";
+
+        let event = finalize_nostr_event(20001, 1700000000, vec![], "test", sk_a).unwrap();
+
+        // Get pubkey for key B
+        let sk_b_bytes = hex::decode(sk_b).unwrap();
+        let sk_b_arr: [u8; 32] = sk_b_bytes.try_into().unwrap();
+        let sk_b_signing = k256::schnorr::SigningKey::from_bytes(&sk_b_arr).unwrap();
+        let pubkey_b = hex::encode(sk_b_signing.verifying_key().to_bytes());
+
+        // Verify event signed by A against B's pubkey
+        let pk_bytes = hex::decode(&pubkey_b).unwrap();
+        let vk = VerifyingKey::from_bytes(pk_bytes.as_slice().try_into().unwrap()).unwrap();
+        let sig_bytes = hex::decode(&event.sig).unwrap();
+        let signature = k256::schnorr::Signature::try_from(sig_bytes.as_slice()).unwrap();
+        let id_bytes = hex::decode(&event.id).unwrap();
+
+        // Verification must fail
+        assert!(vk.verify_prehash(&id_bytes, &signature).is_err());
+    }
 }
