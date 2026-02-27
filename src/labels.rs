@@ -106,6 +106,14 @@ pub const LABEL_SERVER_NOSTR_KEY: &str = "llamenos:server-nostr-key";
 /// HKDF info parameter for server Nostr key (versioned for rotation)
 pub const LABEL_SERVER_NOSTR_KEY_INFO: &str = "llamenos:server-nostr-key:v1";
 
+// --- Push Notification Encryption (Epic 86) ---
+
+/// Wake-tier ECIES push payload — decryptable without PIN (minimal metadata only)
+pub const LABEL_PUSH_WAKE: &str = "llamenos:push-wake";
+
+/// Full-tier ECIES push payload — decryptable only with volunteer's nsec
+pub const LABEL_PUSH_FULL: &str = "llamenos:push-full";
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -140,5 +148,7 @@ mod tests {
         assert_eq!(LABEL_BACKUP, "llamenos:backup");
         assert_eq!(LABEL_SERVER_NOSTR_KEY, "llamenos:server-nostr-key");
         assert_eq!(LABEL_SERVER_NOSTR_KEY_INFO, "llamenos:server-nostr-key:v1");
+        assert_eq!(LABEL_PUSH_WAKE, "llamenos:push-wake");
+        assert_eq!(LABEL_PUSH_FULL, "llamenos:push-full");
     }
 }

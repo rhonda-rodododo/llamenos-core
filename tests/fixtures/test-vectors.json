@@ -1,0 +1,105 @@
+{
+  "version": "1",
+  "generatedBy": "llamenos-core interop test",
+  "keys": {
+    "secretKeyHex": "7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f",
+    "publicKeyHex": "142715675faf8da1ecc4d51e0b9e539fa0d52fdd96ed60dbe99adb15d6b05ad9",
+    "nsec": "nsec1tcqyrulkp5u2symjmnqpwf8xdzqqf9fds50q9swupmm340grz2yqtvp0dq",
+    "npub": "npub1vf864wl3hqfxk00ccwnkhrd3methm660ptkmgpepdehghfgj4h0qyfe767",
+    "adminSecretKeyHex": "0101010101010101010101010101010101010101010101010101010101010101",
+    "adminPublicKeyHex": "1b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f"
+  },
+  "ecies": {
+    "envelope": {
+      "wrappedKey": "6f2cdc25dedcbb37af99e3db946cfdc3463313768e2c4129ed8982c7459cc7e026eb958612114fa36dc677e783bf3fd98881d9f4a7062732b85cb3c921949e69fb092b6899b76886",
+      "ephemeralPubkey": "022f6ed9c9f081ca4f169ddaa2094b92f496d708bdd8c2be6126ccfec039bef011"
+    },
+    "originalKeyHex": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+    "label": "llamenos:note-key",
+    "recipientPubkeyHex": "1b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f"
+  },
+  "noteEncryption": {
+    "plaintextJson": "{\"text\":\"Test note for interop\",\"fields\":{\"severity\":\"high\"}}",
+    "authorPubkey": "142715675faf8da1ecc4d51e0b9e539fa0d52fdd96ed60dbe99adb15d6b05ad9",
+    "adminPubkeys": [
+      "1b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f"
+    ],
+    "encrypted": {
+      "encryptedContent": "79f57151b1bf061fcb06c191b0cf2ed5086f27e5697249ccd9aea5ea7fc93fc8a6b9f5d9d91c2b84e4529f665e72c7a8790a169b173f05c90cc453b1e692cf3039a06c6438c5b4c572d534eaf7d56af0267b6e211cc2f712993250f6b8e537d8140a1a8015",
+      "authorEnvelope": {
+        "wrappedKey": "3c159f275541a6570752d867258de86cc3bdf064008782047cd8b704a968aff33a3e6a737db10d2c6baa5121e979e38cd3872256353a3307f4c5067b8674d46bc0688257975925ab",
+        "ephemeralPubkey": "02e5c330422016cb69f29bc78a48b3efb5e25749500c7a2cecbde278fe6ff68ae7"
+      },
+      "adminEnvelopes": [
+        {
+          "pubkey": "1b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f",
+          "wrappedKey": "4078db83575b887e61cd0806794106a7ff9bccbe0ed0e2ccd3d7bb8fd79968672816e8ac739008d98846ec9b7a9d5d757647427c1ad7363da00bd90725e2552680197d024382a327",
+          "ephemeralPubkey": "03f59066d2709bf25fc5f06a0a1fc02680a1e2a51a0ce312c9bd0a17e138177781"
+        }
+      ]
+    },
+    "authorCanDecrypt": true,
+    "adminCanDecrypt": true
+  },
+  "auth": {
+    "secretKeyHex": "7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f",
+    "timestamp": 1708900000000,
+    "method": "POST",
+    "path": "/api/notes",
+    "token": {
+      "pubkey": "142715675faf8da1ecc4d51e0b9e539fa0d52fdd96ed60dbe99adb15d6b05ad9",
+      "timestamp": 1708900000000,
+      "token": "872bedd2c22b9fcdd1330f7ff6888d39c360d45e556a05fce920871d7ff5dec388321f3f49f9606a58e7476c93e38034c23e056a760cffb343a2f0e7042e30cb"
+    },
+    "valid": true
+  },
+  "pinEncryption": {
+    "pin": "1234",
+    "nsec": "nsec1tcqyrulkp5u2symjmnqpwf8xdzqqf9fds50q9swupmm340grz2yqtvp0dq",
+    "pubkeyHex": "624faabbf1b8126b3df8c3a76b8db1de577deb4f0aedb407216e6e8ba512adde",
+    "encrypted": {
+      "salt": "403ad81946f28a4a6b9a9bd1a820500e",
+      "iterations": 600000,
+      "nonce": "1df25fad6a062c9006d6c472f4ae5d893e91af8325157461",
+      "ciphertext": "c4db4df9473b9bad3d1ad9eb037e0e91b7ac5de59082bf416310b5b8a4088eebf14ae87cef27a11dd8bbb7e6a4a4951f76d01f9e2114ec5d0e24461b68fd2863b3ea02b67d206c86c1e7f1de707baa",
+      "pubkey": "9dc6f00ef3689ae9"
+    },
+    "decryptable": true
+  },
+  "draftEncryption": {
+    "plaintext": "Draft note content for interop test",
+    "secretKeyHex": "7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f",
+    "encryptedHex": "b0ca0f1f21c2ad96774a53b020d165acc38aa9bb99313b159e11e7013ce76a6ef4bfdaf3f107168d94d8b564d133e742af7c6adab6757edc5e28dff3510d759aa60e9a04eb767208115ac1",
+    "decryptable": true
+  },
+  "labels": {
+    "labelNoteKey": "llamenos:note-key",
+    "labelFileKey": "llamenos:file-key",
+    "labelFileMetadata": "llamenos:file-metadata",
+    "labelHubKeyWrap": "llamenos:hub-key-wrap",
+    "labelTranscription": "llamenos:transcription",
+    "labelMessage": "llamenos:message",
+    "labelCallMeta": "llamenos:call-meta",
+    "labelShiftSchedule": "llamenos:shift-schedule",
+    "hkdfSalt": "llamenos:hkdf-salt:v1",
+    "hkdfContextNotes": "llamenos:notes",
+    "hkdfContextDrafts": "llamenos:drafts",
+    "hkdfContextExport": "llamenos:export",
+    "labelHubEvent": "llamenos:hub-event",
+    "labelDeviceProvision": "llamenos:device-provision",
+    "sasSalt": "llamenos:sas",
+    "sasInfo": "llamenos:provisioning-sas",
+    "authPrefix": "llamenos:auth:",
+    "hmacPhonePrefix": "llamenos:phone:",
+    "hmacIpPrefix": "llamenos:ip:",
+    "hmacKeyidPrefix": "llamenos:keyid:",
+    "hmacSubscriber": "llamenos:subscriber",
+    "hmacPreferenceToken": "llamenos:preference-token",
+    "recoverySalt": "llamenos:recovery",
+    "labelBackup": "llamenos:backup",
+    "labelServerNostrKey": "llamenos:server-nostr-key",
+    "labelServerNostrKeyInfo": "llamenos:server-nostr-key:v1",
+    "labelPushWake": "llamenos:push-wake",
+    "labelPushFull": "llamenos:push-full"
+  }
+}

@@ -1,10 +1,11 @@
 # Release workflow for llamenos-core shared crypto crate.
 #
 # Triggered on version tags (v*). Builds native libraries for all platforms,
-# generates UniFFI bindings (Swift + Kotlin), builds WASM package, and
-# creates a GitHub Release with all artifacts.
+# generates UniFFI bindings (Swift + Kotlin), builds WASM package, builds
+# mobile libraries (Android + iOS), and creates a GitHub Release with all artifacts.
 #
 # Epic 96: llamenos-core CI/CD Pipeline.
+# Epic 100: Mobile build pipeline.
 
 name: Release
 
@@ -158,9 +159,123 @@ jobs:
           path: bindings/kotlin/
           retention-days: 5
 
+  # ─── Build mobile Android libraries ──────────────────────────
+  build-mobile-android:
+    needs: test
+    runs-on: ubuntu-latest
+    name: Build (Android)
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@82a92a6e8fbeee089604da2575dc567ae9ddeaab # v2.7.5
+
+      - name: Set up Android NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r27c
+          link-to-sdk: true
+
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk
+
+      - name: Build Android libraries
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          mkdir -p dist/android/jniLibs
+          cargo ndk \
+            -t arm64-v8a \
+            -t armeabi-v7a \
+            -t x86 \
+            -t x86_64 \
+            -p 24 \
+            -o dist/android/jniLibs \
+            build --release
+
+      - name: Generate Kotlin bindings
+        run: |
+          cargo build --profile release-bindgen --features uniffi-bindgen
+          mkdir -p dist/android/kotlin
+          cargo run --features uniffi-bindgen --bin uniffi-bindgen -- \
+            generate --library target/release-bindgen/libllamenos_core.so \
+            --language kotlin --out-dir dist/android/kotlin
+
+      - name: Upload Android libraries
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: android-libs
+          path: dist/android/
+          retention-days: 5
+
+  # ─── Build mobile iOS libraries ──────────────────────────────
+  build-mobile-ios:
+    needs: test
+    runs-on: macos-14
+    name: Build (iOS)
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@82a92a6e8fbeee089604da2575dc567ae9ddeaab # v2.7.5
+
+      - name: Build iOS device library
+        run: cargo build --release --target aarch64-apple-ios
+
+      - name: Build iOS simulator library
+        run: cargo build --release --target aarch64-apple-ios-sim
+
+      - name: Generate Swift bindings
+        run: |
+          cargo build --profile release-bindgen --features uniffi-bindgen
+          mkdir -p dist/ios
+          cargo run --features uniffi-bindgen --bin uniffi-bindgen -- \
+            generate --library target/release-bindgen/libllamenos_core.dylib \
+            --language swift --out-dir dist/ios
+
+      - name: Create XCFramework
+        run: |
+          # Prepare headers for XCFramework
+          mkdir -p dist/ios/headers
+          cp dist/ios/LlamenosCoreFFI.h dist/ios/headers/
+          cp dist/ios/LlamenosCoreFFI.modulemap dist/ios/headers/module.modulemap
+
+          # Create XCFramework from device + simulator static libraries
+          xcodebuild -create-xcframework \
+            -library target/aarch64-apple-ios/release/libllamenos_core.a \
+            -headers dist/ios/headers \
+            -library target/aarch64-apple-ios-sim/release/libllamenos_core.a \
+            -headers dist/ios/headers \
+            -output dist/ios/LlamenosCore.xcframework
+
+          # Clean up temporary headers directory
+          rm -rf dist/ios/headers
+
+      - name: Upload iOS libraries
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ios-libs
+          path: dist/ios/
+          retention-days: 5
+
   # ─── Create GitHub Release ────────────────────────────────────
   release:
-    needs: [build-native, build-wasm, build-bindings]
+    needs: [build-native, build-wasm, build-bindings, build-mobile-android, build-mobile-ios]
     runs-on: ubuntu-latest
     name: Publish Release
 
@@ -200,6 +315,16 @@ jobs:
           # Package Kotlin bindings
           if [ -d artifacts/bindings-kotlin ]; then
             tar czf "release-assets/llamenos-core-kotlin-${VERSION}.tar.gz" -C artifacts/bindings-kotlin .
+          fi
+
+          # Package Android mobile libraries (jniLibs + Kotlin bindings)
+          if [ -d artifacts/android-libs ]; then
+            tar czf "release-assets/llamenos-core-android-v${VERSION}.tar.gz" -C artifacts/android-libs .
+          fi
+
+          # Package iOS mobile libraries (XCFramework + Swift bindings)
+          if [ -d artifacts/ios-libs ]; then
+            tar czf "release-assets/llamenos-core-ios-v${VERSION}.tar.gz" -C artifacts/ios-libs .
           fi
 
           ls -la release-assets/
