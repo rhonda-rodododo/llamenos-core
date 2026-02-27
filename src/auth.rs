@@ -4,7 +4,8 @@
 //! Message format: `llamenos:auth:{pubkey}:{timestamp}:{method}:{path}`
 //! Signature: BIP-340 Schnorr over SHA-256(message)
 
-use k256::schnorr::{SigningKey, VerifyingKey, signature::Signer, signature::Verifier};
+use k256::schnorr::{SigningKey, VerifyingKey};
+use k256::ecdsa::signature::hazmat::{PrehashSigner, PrehashVerifier};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use zeroize::Zeroize;
@@ -50,8 +51,13 @@ pub fn create_auth_token(
         hasher.finalize()
     };
 
-    // Sign with BIP-340 Schnorr
-    let signature: k256::schnorr::Signature = signing_key.sign(&message_hash);
+    // Sign pre-hashed message with BIP-340 Schnorr.
+    // Using sign_prehash because we already SHA-256'd the message ourselves.
+    // The Signer::sign() trait would double-hash (SHA-256 internally), breaking
+    // interop with @noble/curves which expects single SHA-256 + BIP-340.
+    let signature: k256::schnorr::Signature = signing_key
+        .sign_prehash(&message_hash)
+        .map_err(|_| CryptoError::SignatureVerificationFailed)?;
     let token_hex = hex::encode(signature.to_bytes());
 
     sk_bytes.zeroize();
@@ -95,13 +101,15 @@ pub fn verify_auth_token(
     let signature = k256::schnorr::Signature::try_from(sig_bytes.as_slice())
         .map_err(|_| CryptoError::SignatureVerificationFailed)?;
 
-    match verifying_key.verify(&message_hash, &signature) {
+    // Use verify_prehash since we already SHA-256'd the message.
+    // Must match sign_prehash used in create_auth_token.
+    match verifying_key.verify_prehash(&message_hash, &signature) {
         Ok(()) => Ok(true),
         Err(_) => Ok(false),
     }
 }
 
-/// Verify a raw Schnorr signature over a message hash.
+/// Verify a raw Schnorr signature over a pre-hashed message.
 #[cfg_attr(feature = "uniffi-bindgen", uniffi::export)]
 pub fn verify_schnorr(
     message_hex: &str,
@@ -122,7 +130,7 @@ pub fn verify_schnorr(
     let signature = k256::schnorr::Signature::try_from(sig_bytes.as_slice())
         .map_err(|_| CryptoError::SignatureVerificationFailed)?;
 
-    match verifying_key.verify(&message, &signature) {
+    match verifying_key.verify_prehash(&message, &signature) {
         Ok(()) => Ok(true),
         Err(_) => Ok(false),
     }

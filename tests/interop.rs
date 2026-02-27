@@ -934,14 +934,15 @@ fn nostr_event_signing_interop() {
     let expected_pubkey = get_public_key(TEST_SECRET_KEY).unwrap();
     assert_eq!(event.pubkey, expected_pubkey);
 
-    // Signature is valid (verify with k256)
-    use k256::schnorr::{VerifyingKey, signature::Verifier};
+    // Signature is valid (verify pre-hashed with k256)
+    use k256::schnorr::VerifyingKey;
+    use k256::ecdsa::signature::hazmat::PrehashVerifier;
     let pk_bytes = hex::decode(&event.pubkey).unwrap();
     let vk = VerifyingKey::from_bytes(pk_bytes.as_slice().try_into().unwrap()).unwrap();
     let sig_bytes = hex::decode(&event.sig).unwrap();
     let sig = k256::schnorr::Signature::try_from(sig_bytes.as_slice()).unwrap();
     let id_bytes = hex::decode(&event.id).unwrap();
-    vk.verify(&id_bytes, &sig).unwrap();
+    vk.verify_prehash(&id_bytes, &sig).unwrap();
 }
 
 #[test]

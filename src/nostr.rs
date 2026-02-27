@@ -6,7 +6,8 @@
 //! Event ID: SHA-256 of the canonical JSON string (UTF-8 encoded)
 //! Signature: BIP-340 Schnorr over the 32-byte event ID hash
 
-use k256::schnorr::{SigningKey, signature::Signer};
+use k256::schnorr::SigningKey;
+use k256::ecdsa::signature::hazmat::PrehashSigner;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use zeroize::Zeroize;
@@ -65,8 +66,12 @@ pub fn finalize_nostr_event(
     let id_hash = Sha256::digest(canonical.as_bytes());
     let id = hex::encode(id_hash);
 
-    // Sign the 32-byte event ID hash with BIP-340 Schnorr
-    let signature: k256::schnorr::Signature = signing_key.sign(&id_hash);
+    // Sign the pre-hashed 32-byte event ID with BIP-340 Schnorr.
+    // Using sign_prehash because id_hash is already SHA-256'd.
+    // Signer::sign() would double-hash, breaking interop with @noble/curves.
+    let signature: k256::schnorr::Signature = signing_key
+        .sign_prehash(&id_hash)
+        .map_err(|_| CryptoError::SignatureVerificationFailed)?;
     let sig = hex::encode(signature.to_bytes());
 
     sk_bytes.zeroize();
@@ -85,7 +90,8 @@ pub fn finalize_nostr_event(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use k256::schnorr::{VerifyingKey, signature::Verifier};
+    use k256::schnorr::VerifyingKey;
+    use k256::ecdsa::signature::hazmat::PrehashVerifier;
 
     #[test]
     fn test_nostr_event_signing_nip01() {
@@ -129,7 +135,7 @@ mod tests {
         let sig_bytes = hex::decode(&event.sig).unwrap();
         let signature = k256::schnorr::Signature::try_from(sig_bytes.as_slice()).unwrap();
         let id_bytes = hex::decode(&event.id).unwrap();
-        verifying_key.verify(&id_bytes, &signature).unwrap();
+        verifying_key.verify_prehash(&id_bytes, &signature).unwrap();
     }
 
     #[test]
