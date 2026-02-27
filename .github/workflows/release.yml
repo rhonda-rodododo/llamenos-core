@@ -269,7 +269,7 @@ jobs:
           xcodebuild -create-xcframework \
             -framework "/tmp/device/${FW_NAME}.framework" \
             -framework "/tmp/simulator/${FW_NAME}.framework" \
-            -output dist/ios/LlamenosCore.xcframework
+            -output dist/ios/LlamenosCoreFFI.xcframework
 
       - name: Upload iOS libraries
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

@@ -223,7 +223,7 @@ MODULEMAP
   # Create XCFramework from .framework bundles
   echo ""
   echo "Creating XCFramework..."
-  local xcframework="$ios_dist/LlamenosCore.xcframework"
+  local xcframework="$ios_dist/LlamenosCoreFFI.xcframework"
   rm -rf "$xcframework"
 
   xcodebuild -create-xcframework \
