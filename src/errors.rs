@@ -3,8 +3,8 @@
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-#[cfg_attr(feature = "uniffi-bindgen", derive(uniffi::Error))]
-#[cfg_attr(feature = "uniffi-bindgen", uniffi(flat_error))]
+#[cfg_attr(feature = "mobile", derive(uniffi::Error))]
+#[cfg_attr(feature = "mobile", uniffi(flat_error))]
 pub enum CryptoError {
     #[error("Invalid secret key: must be 32 bytes hex")]
     InvalidSecretKey,

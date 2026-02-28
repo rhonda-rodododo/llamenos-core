@@ -191,7 +191,7 @@ jobs:
             -t x86_64 \
             --platform 24 \
             -o dist/android/jniLibs \
-            build --release
+            build --release --features mobile
 
       - name: Generate Kotlin bindings
         run: |
@@ -227,10 +227,10 @@ jobs:
         uses: swatinem/rust-cache@82a92a6e8fbeee089604da2575dc567ae9ddeaab # v2.7.5
 
       - name: Build iOS device library
-        run: cargo build --release --target aarch64-apple-ios
+        run: cargo build --release --target aarch64-apple-ios --features mobile
 
       - name: Build iOS simulator library
-        run: cargo build --release --target aarch64-apple-ios-sim
+        run: cargo build --release --target aarch64-apple-ios-sim --features mobile
 
       - name: Generate Swift bindings
         run: |

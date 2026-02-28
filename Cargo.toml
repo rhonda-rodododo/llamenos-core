@@ -54,7 +54,8 @@ wasm-bindgen = { version = "0.2", optional = true }
 
 [features]
 default = []
-uniffi-bindgen = ["dep:uniffi", "uniffi/cli"]
+mobile = ["dep:uniffi"]
+uniffi-bindgen = ["mobile", "uniffi/cli"]
 wasm = ["dep:wasm-bindgen", "getrandom/js"]
 
 [[bin]]

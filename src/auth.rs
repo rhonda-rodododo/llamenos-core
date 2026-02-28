@@ -15,7 +15,7 @@ use crate::labels::AUTH_PREFIX;
 
 /// A signed authentication token.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi-bindgen", derive(uniffi::Record))]
+#[cfg_attr(feature = "mobile", derive(uniffi::Record))]
 pub struct AuthToken {
     pub pubkey: String,
     pub timestamp: u64,
@@ -26,7 +26,7 @@ pub struct AuthToken {
 ///
 /// The message is bound to the specific request method + path to prevent
 /// cross-endpoint replay attacks.
-#[cfg_attr(feature = "uniffi-bindgen", uniffi::export)]
+#[cfg_attr(feature = "mobile", uniffi::export)]
 pub fn create_auth_token(
     secret_key_hex: &str,
     timestamp: u64,
@@ -72,7 +72,7 @@ pub fn create_auth_token(
 /// Verify a Schnorr auth token.
 ///
 /// Returns true if the signature is valid for the given method + path.
-#[cfg_attr(feature = "uniffi-bindgen", uniffi::export)]
+#[cfg_attr(feature = "mobile", uniffi::export)]
 pub fn verify_auth_token(
     token: &AuthToken,
     method: &str,
@@ -110,7 +110,7 @@ pub fn verify_auth_token(
 }
 
 /// Verify a raw Schnorr signature over a pre-hashed message.
-#[cfg_attr(feature = "uniffi-bindgen", uniffi::export)]
+#[cfg_attr(feature = "mobile", uniffi::export)]
 pub fn verify_schnorr(
     message_hex: &str,
     signature_hex: &str,

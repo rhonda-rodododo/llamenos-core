@@ -101,7 +101,7 @@ build_android() {
     -t x86_64 \
     -p 24 \
     -o "$android_dist" \
-    build --release
+    build --release --features mobile
 
   echo ""
   echo "Android .so files:"
@@ -152,11 +152,11 @@ build_ios() {
 
   # Build device (aarch64-apple-ios)
   echo "Building aarch64-apple-ios (device)..."
-  cargo build --release --target aarch64-apple-ios
+  cargo build --release --target aarch64-apple-ios --features mobile
 
   # Build simulator (aarch64-apple-ios-sim)
   echo "Building aarch64-apple-ios-sim (simulator)..."
-  cargo build --release --target aarch64-apple-ios-sim
+  cargo build --release --target aarch64-apple-ios-sim --features mobile
 
   local device_lib="target/aarch64-apple-ios/release/${LIB_NAME}.a"
   local sim_lib="target/aarch64-apple-ios-sim/release/${LIB_NAME}.a"

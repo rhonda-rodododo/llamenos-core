@@ -15,7 +15,7 @@ use crate::errors::CryptoError;
 /// A secp256k1 keypair with Nostr bech32 encodings.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "uniffi-bindgen", derive(uniffi::Record))]
+#[cfg_attr(feature = "mobile", derive(uniffi::Record))]
 pub struct KeyPair {
     /// hex-encoded 32-byte secret key
     pub secret_key_hex: String,
@@ -28,7 +28,7 @@ pub struct KeyPair {
 }
 
 /// Generate a new random secp256k1 keypair.
-#[cfg_attr(feature = "uniffi-bindgen", uniffi::export)]
+#[cfg_attr(feature = "mobile", uniffi::export)]
 pub fn generate_keypair() -> KeyPair {
     let sk = SecretKey::random(&mut OsRng);
     let pk = sk.public_key();
@@ -56,7 +56,7 @@ pub fn generate_keypair() -> KeyPair {
 }
 
 /// Derive a keypair from an nsec bech32 string.
-#[cfg_attr(feature = "uniffi-bindgen", uniffi::export)]
+#[cfg_attr(feature = "mobile", uniffi::export)]
 pub fn keypair_from_nsec(nsec: &str) -> Result<KeyPair, CryptoError> {
     let (hrp, data) = bech32::decode(nsec).map_err(|_| CryptoError::InvalidNsec)?;
     if hrp.as_str() != "nsec" || data.len() != 32 {
@@ -85,7 +85,7 @@ pub fn keypair_from_nsec(nsec: &str) -> Result<KeyPair, CryptoError> {
 }
 
 /// Get the x-only public key (hex) from a secret key (hex).
-#[cfg_attr(feature = "uniffi-bindgen", uniffi::export)]
+#[cfg_attr(feature = "mobile", uniffi::export)]
 pub fn get_public_key(secret_key_hex: &str) -> Result<String, CryptoError> {
     let sk_bytes = hex::decode(secret_key_hex).map_err(CryptoError::HexError)?;
     if sk_bytes.len() != 32 {
@@ -102,7 +102,7 @@ pub fn get_public_key(secret_key_hex: &str) -> Result<String, CryptoError> {
 }
 
 /// Validate an nsec bech32 string.
-#[cfg_attr(feature = "uniffi-bindgen", uniffi::export)]
+#[cfg_attr(feature = "mobile", uniffi::export)]
 pub fn is_valid_nsec(nsec: &str) -> bool {
     match bech32::decode(nsec) {
         Ok((hrp, data)) => hrp.as_str() == "nsec" && data.len() == 32,
